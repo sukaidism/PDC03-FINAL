@@ -13,16 +13,13 @@ return new class extends Migration
     {
         Schema::create('favorites', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
-            $table->foreignId('property_id')->constrained('properties')->onDelete('cascade');
+            $table->unsignedBigInteger('user_id');
+            $table->unsignedBigInteger('property_id');
             $table->timestamps();
 
-            // Unique constraint to prevent duplicate favorites
-            $table->unique(['user_id', 'property_id'], 'uk_user_property_favorite');
-            
-            // Indexes
-            $table->index('user_id');
-            $table->index('property_id');
+            // Foreign Key constraints
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+            $table->foreign('property_id')->references('id')->on('properties')->onDelete('cascade');
         });
     }
 

@@ -14,12 +14,9 @@ return new class extends Migration
         Schema::create('cities', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('region')->nullable();
-            $table->integer('property_count')->default(0);
+            $table->string('region');
             $table->timestamps();
-
-            // Index
-            $table->index('name');
+            $table->softDeletes();
         });
     }
 

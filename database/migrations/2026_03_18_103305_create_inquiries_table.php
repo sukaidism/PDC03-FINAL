@@ -13,19 +13,14 @@ return new class extends Migration
     {
         Schema::create('inquiries', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('property_id')->constrained('properties')->onDelete('cascade');
-            $table->foreignId('renter_id')->constrained('users')->onDelete('cascade');
+            $table->unsignedBigInteger('property_id');
+            $table->unsignedBigInteger('user_id'); // renter who made the inquiry
             $table->text('message');
             $table->enum('status', ['pending', 'responded', 'closed'])->default('pending');
-            $table->text('admin_response')->nullable();
+            $table->text('response')->nullable();
             $table->timestamp('responded_at')->nullable();
             $table->timestamps();
-
-            // Indexes
-            $table->index('property_id');
-            $table->index('renter_id');
-            $table->index('status');
-            $table->index('created_at');
+            $table->softDeletes();
         });
     }
 

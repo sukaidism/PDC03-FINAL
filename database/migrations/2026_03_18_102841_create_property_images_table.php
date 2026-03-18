@@ -13,16 +13,16 @@ return new class extends Migration
     {
         Schema::create('property_images', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('property_id')->constrained('properties')->onDelete('cascade');
-            $table->string('image_url', 500);
-            $table->integer('order_num')->default(0);
-            $table->boolean('is_primary')->default(false);
+            $table->unsignedBigInteger('property_id');
+            $table->string('image_path');
+            $table->integer('position');
             $table->timestamps();
+            $table->softDeletes();
 
-            // Indexes
-            $table->index('property_id');
-            $table->index(['property_id', 'is_primary'], 'idx_property_primary_image');
+            // Foreign Key Constraint
+            $table->foreign('property_id')->references('id')->on('properties')->onDelete('cascade');
         });
+
     }
 
     /**

@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::create('reservations', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('property_id')->constrained('properties')->onDelete('cascade');
-            $table->foreignId('renter_id')->constrained('users')->onDelete('cascade');
+            $table->unsignedBigInteger('property_id');
+            $table->unsignedBigInteger('user_id'); // renter who made the reservation
             $table->date('move_in_date');
             $table->date('move_out_date')->nullable();
             $table->decimal('total_price', 10, 2);
@@ -23,12 +23,11 @@ return new class extends Migration
             $table->timestamp('confirmed_at')->nullable();
             $table->timestamp('cancelled_at')->nullable();
             $table->timestamps();
+            $table->softDeletes();
 
-            // Indexes
-            $table->index('property_id');
-            $table->index('renter_id');
-            $table->index('status');
-            $table->index(['move_in_date', 'move_out_date'], 'idx_reservation_dates');
+            //Foreign Key Constraints
+            $table->foreign('property_id')->references('id')->on('properties')->onDelete('cascade');
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
         });
     }
 

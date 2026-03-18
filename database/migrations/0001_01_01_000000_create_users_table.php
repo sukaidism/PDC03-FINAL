@@ -16,8 +16,8 @@ return new class extends Migration
             $table->string('name');
             $table->string('email')->unique();
             $table->string('password');
-            $table->enum('role', ['renter', 'landlord', 'admin'])->default('renter');
-            $table->string('phone', 20)->nullable();
+            $table->enum('role', ['renter', 'admin'])->default('renter');
+            $table->string('phone', 20);
             $table->text('bio')->nullable();
             $table->string('avatar')->nullable();
             $table->enum('status', ['active', 'inactive', 'suspended'])->default('active');
@@ -25,10 +25,6 @@ return new class extends Migration
             $table->rememberToken();
             $table->timestamps();
             $table->softDeletes();
-
-            // Indexes
-            $table->index('role');
-            $table->index('status');
         });
     }
 
