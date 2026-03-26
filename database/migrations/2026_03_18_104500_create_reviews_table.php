@@ -13,9 +13,9 @@ return new class extends Migration
     {
         Schema::create('reviews', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('property_id')->constrained('properties')->onDelete('cascade');
-            $table->foreignId('renter_id')->constrained('users')->onDelete('cascade');
-            $table->foreignId('reservation_id')->unique()->constrained('reservations')->onDelete('cascade');
+            $table->unsignedBigInteger('property_id');
+            $table->unsignedBigInteger('renter_id');
+            $table->unsignedBigInteger('reservation_id')->unique();
             $table->integer('rating')->unsigned();
             $table->text('comment')->nullable();
             $table->json('pros')->nullable();
@@ -23,10 +23,9 @@ return new class extends Migration
             $table->boolean('is_verified')->default(true);
             $table->timestamps();
 
-            // Indexes
-            $table->index('property_id');
-            $table->index('renter_id');
-            $table->index('rating');
+            $table->foreign('property_id')->references('id')->on('properties')->onDelete('cascade');
+            $table->foreign('renter_id')->references('id')->on('users')->onDelete('cascade');
+            $table->foreign('reservation_id')->references('id')->on('reservations')->onDelete('cascade');
         });
     }
 
