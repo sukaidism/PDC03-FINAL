@@ -1,11 +1,11 @@
 <div>
     <x-slot:header>
-        <h1 class="text-lg font-semibold text-[#1b1b18]">Reviews</h1>
+        <span class="font-medium text-foreground">Reviews</span>
     </x-slot:header>
 
     <div class="card bg-base-100 shadow">
         <div class="card-body">
-            <div class="overflow-x-auto">
+            <div class="overflow-x-auto transition-opacity duration-200" wire:loading.class="opacity-50 pointer-events-none">
                 <table class="table">
                     <thead>
                         <tr>
@@ -49,8 +49,19 @@
                 </table>
             </div>
 
-            <div class="mt-4">
-                {{ $reviews->links() }}
+            <div class="mt-4 flex items-center justify-between gap-4">
+                <div class="flex items-center gap-2 text-sm text-base-content/60">
+                    <span>Rows per page:</span>
+                    <select wire:model.live="perPage" class="select select-bordered select-sm">
+                        <option value="5">5</option>
+                        <option value="10">10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                    </select>
+                </div>
+                <div class="flex-1">
+                    {{ $reviews->links() }}
+                </div>
             </div>
         </div>
     </div>

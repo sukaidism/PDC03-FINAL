@@ -11,8 +11,14 @@ class Inquiries extends Component
     use WithPagination;
 
     public string $search = '';
+    public int $perPage = 10;
 
     public function updatingSearch(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedPerPage(): void
     {
         $this->resetPage();
     }
@@ -22,7 +28,7 @@ class Inquiries extends Component
         $inquiries = Inquiry::query()
             ->when($this->search, fn ($q) => $q->where('message', 'like', "%{$this->search}%"))
             ->latest()
-            ->paginate(10);
+            ->paginate($this->perPage);
 
         return view('livewire.admin.inquiries', compact('inquiries'))
             ->layout('components.layouts.admin')

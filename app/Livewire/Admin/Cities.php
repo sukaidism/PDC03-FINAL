@@ -10,9 +10,16 @@ class Cities extends Component
 {
     use WithPagination;
 
+    public int $perPage = 10;
+
+    public function updatedPerPage(): void
+    {
+        $this->resetPage();
+    }
+
     public function render()
     {
-        $cities = City::latest()->paginate(10);
+        $cities = City::latest()->paginate($this->perPage);
 
         return view('livewire.admin.cities', compact('cities'))
             ->layout('components.layouts.admin')

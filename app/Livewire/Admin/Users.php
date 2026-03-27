@@ -18,16 +18,7 @@ class Users extends Component
     public string $sortDir = 'desc';
     public string $dateFrom = '';
     public string $dateTo = '';
-    public bool $showFilters = false;
-    public array $columns = [
-        'id' => true,
-        'name' => true,
-        'email' => true,
-        'role' => true,
-        'status' => true,
-        'phone' => false,
-        'joined' => true,
-    ];
+    public int $perPage = 10;
 
     public function updatingSearch(): void
     {
@@ -50,6 +41,11 @@ class Users extends Component
     }
 
     public function updatedDateTo(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedPerPage(): void
     {
         $this->resetPage();
     }
@@ -146,7 +142,7 @@ class Users extends Component
 
     public function render()
     {
-        $users = $this->buildQuery()->paginate(10);
+        $users = $this->buildQuery()->paginate($this->perPage);
 
         $activeFilterCount = collect([$this->filterRole, $this->filterStatus, $this->dateFrom, $this->dateTo])
             ->filter()
