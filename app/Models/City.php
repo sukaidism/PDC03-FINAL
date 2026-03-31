@@ -6,5 +6,15 @@ use Illuminate\Database\Eloquent\Model;
 
 class City extends Model
 {
-    //
+    protected $fillable = ['province_id', 'name', 'zip_code'];
+
+    public function province()
+    {
+        return $this->belongsTo(Province::class);
+    }
+
+    public function barangays()
+    {
+        return $this->hasMany(Barangay::class);
+    }
 }

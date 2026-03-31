@@ -2,10 +2,13 @@
 
 namespace App\Livewire\Admin;
 
+use App\Models\Barangay;
 use App\Models\City;
 use App\Models\Property;
 use App\Models\PropertyImage;
 use App\Models\PropertyType;
+use App\Models\Province;
+use App\Models\Region;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Livewire\WithPagination;
@@ -40,9 +43,13 @@ class Properties extends Component
     public string $property_type_id = '';
     public bool $status = true;
 
-    // Step 2: Location
+    // Step 2: Location (Address)
+    public string $region_id = '';
+    public string $province_id = '';
     public string $city_id = '';
-    public string $address = '';
+    public string $barangay_id = '';
+    public string $street = '';
+    public string $zip_code = '';
 
     // Step 3: Photos
     public array $photos = [];
@@ -67,8 +74,12 @@ class Properties extends Component
                 'status' => 'boolean',
             ],
             2 => [
+                'region_id' => 'required|exists:regions,id',
+                'province_id' => 'required|exists:provinces,id',
                 'city_id' => 'required|exists:cities,id',
-                'address' => 'required|string|max:255',
+                'barangay_id' => 'required|exists:barangays,id',
+                'street' => 'nullable|string|max:255',
+                'zip_code' => 'nullable|string|max:10',
             ],
             3 => $this->editingId
                 ? ['photos.*' => 'nullable|image|max:5120']
@@ -93,8 +104,12 @@ class Properties extends Component
             'title' => 'required|string|max:255',
             'property_type_id' => 'required|exists:property_types,id',
             'status' => 'boolean',
+            'region_id' => 'required|exists:regions,id',
+            'province_id' => 'required|exists:provinces,id',
             'city_id' => 'required|exists:cities,id',
-            'address' => 'required|string|max:255',
+            'barangay_id' => 'required|exists:barangays,id',
+            'street' => 'nullable|string|max:255',
+            'zip_code' => 'nullable|string|max:10',
             'description' => 'required|string',
             'bedrooms' => 'required|integer|min:0',
             'bathrooms' => 'required|integer|min:0',
@@ -128,6 +143,31 @@ class Properties extends Component
     {
         $this->reset(['search', 'filterStatus', 'filterCity', 'filterType']);
         $this->resetPage();
+    }
+
+    public function updatedRegionId(): void
+    {
+        $this->province_id = '';
+        $this->city_id = '';
+        $this->barangay_id = '';
+    }
+
+    public function updatedProvinceId(): void
+    {
+        $this->city_id = '';
+        $this->barangay_id = '';
+    }
+
+    public function updatedCityId(): void
+    {
+        $this->barangay_id = '';
+        // Auto-fill zip code from city if available
+        if ($this->city_id) {
+            $city = City::find($this->city_id);
+            if ($city && $city->zip_code) {
+                $this->zip_code = $city->zip_code;
+            }
+        }
     }
 
     public function goToStep(int $step): void
@@ -174,14 +214,26 @@ class Properties extends Component
 
     public function edit(int $id): void
     {
-        $property = Property::with('images')->findOrFail($id);
+        $property = Property::with(['images', 'address.barangay.city.province.region'])->findOrFail($id);
         $this->editingId = $id;
         $this->currentStep = 1;
         $this->title = $property->title;
         $this->property_type_id = (string) $property->property_type_id;
         $this->status = (bool) $property->status;
-        $this->city_id = (string) $property->city_id;
-        $this->address = $property->address;
+
+        // Populate address fields from relationship
+        if ($property->address) {
+            $barangay = $property->address->barangay;
+            if ($barangay) {
+                $this->barangay_id = (string) $barangay->id;
+                $this->city_id = (string) $barangay->city_id;
+                $this->province_id = (string) $barangay->city->province_id;
+                $this->region_id = (string) $barangay->city->province->region_id;
+            }
+            $this->street = $property->address->street ?? '';
+            $this->zip_code = $property->address->zip_code ?? '';
+        }
+
         $this->description = $property->description;
         $this->bedrooms = (string) $property->bedrooms;
         $this->bathrooms = (string) $property->bathrooms;
@@ -205,8 +257,6 @@ class Properties extends Component
             'title' => $this->title,
             'property_type_id' => $this->property_type_id,
             'status' => $this->status,
-            'city_id' => $this->city_id,
-            'address' => $this->address,
             'description' => $this->description,
             'bedrooms' => $this->bedrooms,
             'bathrooms' => $this->bathrooms,
@@ -215,9 +265,19 @@ class Properties extends Component
             'price' => $this->price,
         ];
 
+        $addressData = [
+            'barangay_id' => $this->barangay_id,
+            'street' => $this->street ?: null,
+            'zip_code' => $this->zip_code ?: null,
+        ];
+
         if ($this->editingId) {
             $property = Property::findOrFail($this->editingId);
             $property->update($data);
+            $property->address()->updateOrCreate(
+                ['property_id' => $property->id],
+                $addressData
+            );
 
             // Remove deleted existing photos
             $keepIds = collect($this->existingPhotos)->pluck('id')->toArray();
@@ -230,6 +290,7 @@ class Properties extends Component
             session()->flash('success', 'Property updated successfully.');
         } else {
             $property = Property::create($data);
+            $property->address()->create($addressData);
             $position = 0;
             session()->flash('success', 'Property created successfully.');
         }
@@ -280,18 +341,26 @@ class Properties extends Component
 
         return response()->streamDownload(function () use ($properties) {
             $handle = fopen('php://output', 'w');
-            fputcsv($handle, ['ID', 'Title', 'Price', 'Address', 'Bedrooms', 'Bathrooms', 'Area', 'City', 'Status', 'Created']);
+            fputcsv($handle, ['ID', 'Title', 'Price', 'Street', 'Barangay', 'City', 'Province', 'Region', 'Zip Code', 'Bedrooms', 'Bathrooms', 'Area', 'Status', 'Created']);
 
             foreach ($properties as $property) {
+                $addr = $property->address;
+                $brgy = $addr?->barangay;
+                $city = $brgy?->city;
+                $prov = $city?->province;
                 fputcsv($handle, [
                     $property->id,
                     $property->title,
                     $property->price,
-                    $property->address,
+                    $addr?->street ?? '',
+                    $brgy?->name ?? '',
+                    $city?->name ?? '',
+                    $prov?->name ?? '',
+                    $prov?->region?->name ?? '',
+                    $addr?->zip_code ?? '',
                     $property->bedrooms,
                     $property->bathrooms,
                     $property->area,
-                    $property->city?->name ?? '',
                     $property->status ? 'Active' : 'Inactive',
                     $property->created_at->format('Y-m-d'),
                 ]);
@@ -315,22 +384,30 @@ class Properties extends Component
             $xml .= '<Worksheet ss:Name="Properties"><Table>' . "\n";
 
             $xml .= '<Row>';
-            foreach (['ID', 'Title', 'Price', 'Address', 'Bedrooms', 'Bathrooms', 'Area', 'City', 'Status', 'Created'] as $header) {
+            foreach (['ID', 'Title', 'Price', 'Street', 'Barangay', 'City', 'Province', 'Region', 'Zip Code', 'Bedrooms', 'Bathrooms', 'Area', 'Status', 'Created'] as $header) {
                 $xml .= '<Cell><Data ss:Type="String">' . htmlspecialchars($header, ENT_XML1) . '</Data></Cell>';
             }
             $xml .= '</Row>' . "\n";
 
             foreach ($properties as $property) {
+                $addr = $property->address;
+                $brgy = $addr?->barangay;
+                $city = $brgy?->city;
+                $prov = $city?->province;
                 $xml .= '<Row>';
                 $xml .= '<Cell><Data ss:Type="Number">' . $property->id . '</Data></Cell>';
                 foreach ([
                     $property->title,
                     $property->price,
-                    $property->address,
+                    $addr?->street ?? '',
+                    $brgy?->name ?? '',
+                    $city?->name ?? '',
+                    $prov?->name ?? '',
+                    $prov?->region?->name ?? '',
+                    $addr?->zip_code ?? '',
                     $property->bedrooms,
                     $property->bathrooms,
                     $property->area,
-                    $property->city?->name ?? '',
                     $property->status ? 'Active' : 'Inactive',
                     $property->created_at->format('Y-m-d'),
                 ] as $value) {
@@ -348,7 +425,7 @@ class Properties extends Component
 
     private function resetForm(): void
     {
-        $this->reset(['title', 'description', 'price', 'address', 'bedrooms', 'bathrooms', 'area', 'amenities', 'property_type_id', 'city_id', 'editingId', 'photos', 'existingPhotos', 'currentStep']);
+        $this->reset(['title', 'description', 'price', 'street', 'zip_code', 'bedrooms', 'bathrooms', 'area', 'amenities', 'property_type_id', 'region_id', 'province_id', 'city_id', 'barangay_id', 'editingId', 'photos', 'existingPhotos', 'currentStep']);
         $this->status = true;
         $this->currentStep = 1;
         $this->resetValidation();
@@ -357,12 +434,16 @@ class Properties extends Component
     private function buildQuery()
     {
         return Property::query()
-            ->with(['city', 'propertyType'])
+            ->with(['address.barangay.city.province.region', 'propertyType'])
             ->when($this->search, fn ($q) => $q->where(fn ($sq) => $sq
                 ->where('title', 'like', "%{$this->search}%")
-                ->orWhere('address', 'like', "%{$this->search}%")))
+                ->orWhereHas('address', fn ($aq) => $aq
+                    ->where('street', 'like', "%{$this->search}%")
+                    ->orWhereHas('barangay', fn ($bq) => $bq
+                        ->where('name', 'like', "%{$this->search}%")
+                        ->orWhereHas('city', fn ($cq) => $cq->where('name', 'like', "%{$this->search}%"))))))
             ->when($this->filterStatus !== '', fn ($q) => $q->where('status', $this->filterStatus))
-            ->when($this->filterCity, fn ($q) => $q->where('city_id', $this->filterCity))
+            ->when($this->filterCity, fn ($q) => $q->whereHas('address', fn ($aq) => $aq->whereHas('barangay', fn ($bq) => $bq->where('city_id', $this->filterCity))))
             ->when($this->filterType, fn ($q) => $q->where('property_type_id', $this->filterType))
             ->orderBy($this->sortBy, $this->sortDir);
     }
@@ -375,11 +456,15 @@ class Properties extends Component
             ->filter(fn ($v) => $v !== null && $v !== '')
             ->count();
 
-        $cities = City::orderBy('name')->get();
+        $regions = Region::orderBy('name')->get();
+        $provinces = $this->region_id ? Province::where('region_id', $this->region_id)->orderBy('name')->get() : collect();
+        $cities = $this->province_id ? City::where('province_id', $this->province_id)->orderBy('name')->get() : collect();
+        $barangays = $this->city_id ? Barangay::where('city_id', $this->city_id)->orderBy('name')->get() : collect();
+        $allCities = City::with('province')->orderBy('name')->get();
         $propertyTypes = PropertyType::all();
-        $viewProperty = $this->viewingId ? Property::with(['city', 'propertyType', 'user'])->find($this->viewingId) : null;
+        $viewProperty = $this->viewingId ? Property::with(['address.barangay.city.province.region', 'propertyType', 'user', 'images'])->find($this->viewingId) : null;
 
-        return view('livewire.admin.properties', compact('properties', 'activeFilterCount', 'cities', 'propertyTypes', 'viewProperty'))
+        return view('livewire.admin.properties', compact('properties', 'activeFilterCount', 'regions', 'provinces', 'cities', 'barangays', 'allCities', 'propertyTypes', 'viewProperty'))
             ->layout('components.layouts.admin')
             ->title('Properties');
     }

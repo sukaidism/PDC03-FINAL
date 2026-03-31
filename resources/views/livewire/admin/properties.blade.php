@@ -70,8 +70,8 @@
                         <select wire:model.live="filterCity"
                             class="w-full rounded-md border border-line bg-card px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary">
                             <option value="">All Cities</option>
-                            @foreach($cities as $city)
-                                <option value="{{ $city->id }}">{{ $city->name }}</option>
+                            @foreach($allCities as $city)
+                                <option value="{{ $city->id }}">{{ $city->name }}, {{ $city->province?->name }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -143,7 +143,7 @@
                             <td class="px-4 py-3 text-dim">{{ $property->id }}</td>
                             <td class="px-4 py-3 font-medium text-foreground">{{ $property->title }}</td>
                             <td class="px-4 py-3 text-foreground">&#8369;{{ number_format($property->price, 2) }}</td>
-                            <td class="px-4 py-3 text-foreground">{{ $property->city?->name ?? '—' }}</td>
+                            <td class="px-4 py-3 text-foreground">{{ $property->address?->barangay?->city?->name ?? '—' }}</td>
                             <td class="px-4 py-3">
                                 <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {{ $property->status ? 'bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400' : 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400' }}">
                                     {{ $property->status ? 'Active' : 'Inactive' }}
@@ -260,7 +260,7 @@
                                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" :class="$wire.property_type_id == '{{ $type->id }}' ? 'text-primary' : 'text-dim'" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                                                     <path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                                                 </svg>
-                                                <span class="text-sm font-medium" :class="$wire.property_type_id == '{{ $type->id }}' ? 'text-primary' : 'text-foreground'">Type #{{ $type->id }}</span>
+                                                <span class="text-sm font-medium" :class="$wire.property_type_id == '{{ $type->id }}' ? 'text-primary' : 'text-foreground'">{{ $type->name }}</span>
                                             </label>
                                         @endforeach
                                     </div>
@@ -290,23 +290,72 @@
                             <h2 class="text-xl font-bold text-foreground mb-6">Location</h2>
 
                             <div class="space-y-5">
-                                <div>
-                                    <label class="block text-sm font-medium text-foreground mb-1.5">City <span class="text-red-500">*</span></label>
-                                    <select wire:model="city_id"
-                                        class="w-full rounded-md border border-line bg-card px-3 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary">
-                                        <option value="">Select City</option>
-                                        @foreach($cities as $city)
-                                            <option value="{{ $city->id }}">{{ $city->name }}</option>
-                                        @endforeach
-                                    </select>
-                                    @error('city_id') <span class="text-xs text-red-500 mt-1 block">{{ $message }}</span> @enderror
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-foreground mb-1.5">Region <span class="text-red-500">*</span></label>
+                                        <select wire:model.live="region_id"
+                                            class="w-full rounded-md border border-line bg-card px-3 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary">
+                                            <option value="">Select Region</option>
+                                            @foreach($regions as $region)
+                                                <option value="{{ $region->id }}">{{ $region->name }}</option>
+                                            @endforeach
+                                        </select>
+                                        @error('region_id') <span class="text-xs text-red-500 mt-1 block">{{ $message }}</span> @enderror
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-foreground mb-1.5">Province <span class="text-red-500">*</span></label>
+                                        <select wire:model.live="province_id" @disabled(!$region_id)
+                                            class="w-full rounded-md border border-line bg-card px-3 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed">
+                                            <option value="">{{ $region_id ? 'Select Province' : 'Select Region first' }}</option>
+                                            @foreach($provinces as $province)
+                                                <option value="{{ $province->id }}">{{ $province->name }}</option>
+                                            @endforeach
+                                        </select>
+                                        @error('province_id') <span class="text-xs text-red-500 mt-1 block">{{ $message }}</span> @enderror
+                                    </div>
                                 </div>
 
-                                <div>
-                                    <label class="block text-sm font-medium text-foreground mb-1.5">Street Address <span class="text-red-500">*</span></label>
-                                    <input type="text" wire:model="address" placeholder="Enter full address..."
-                                        class="w-full rounded-md border border-line bg-card px-3 py-2.5 text-sm text-foreground placeholder-dim focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
-                                    @error('address') <span class="text-xs text-red-500 mt-1 block">{{ $message }}</span> @enderror
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-foreground mb-1.5">City / Municipality <span class="text-red-500">*</span></label>
+                                        <select wire:model.live="city_id" @disabled(!$province_id)
+                                            class="w-full rounded-md border border-line bg-card px-3 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed">
+                                            <option value="">{{ $province_id ? 'Select City' : 'Select Province first' }}</option>
+                                            @foreach($cities as $city)
+                                                <option value="{{ $city->id }}">{{ $city->name }}</option>
+                                            @endforeach
+                                        </select>
+                                        @error('city_id') <span class="text-xs text-red-500 mt-1 block">{{ $message }}</span> @enderror
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-foreground mb-1.5">Barangay <span class="text-red-500">*</span></label>
+                                        <select wire:model="barangay_id" @disabled(!$city_id)
+                                            class="w-full rounded-md border border-line bg-card px-3 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed">
+                                            <option value="">{{ $city_id ? 'Select Barangay' : 'Select City first' }}</option>
+                                            @foreach($barangays as $barangay)
+                                                <option value="{{ $barangay->id }}">{{ $barangay->name }}</option>
+                                            @endforeach
+                                        </select>
+                                        @error('barangay_id') <span class="text-xs text-red-500 mt-1 block">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                    <div class="sm:col-span-2">
+                                        <label class="block text-sm font-medium text-foreground mb-1.5">Street Address</label>
+                                        <input type="text" wire:model="street" placeholder="e.g. 123 Rizal Street..."
+                                            class="w-full rounded-md border border-line bg-card px-3 py-2.5 text-sm text-foreground placeholder-dim focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
+                                        @error('street') <span class="text-xs text-red-500 mt-1 block">{{ $message }}</span> @enderror
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-foreground mb-1.5">Zip Code</label>
+                                        <input type="text" wire:model="zip_code" placeholder="e.g. 1000"
+                                            class="w-full rounded-md border border-line bg-card px-3 py-2.5 text-sm text-foreground placeholder-dim focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
+                                        @error('zip_code') <span class="text-xs text-red-500 mt-1 block">{{ $message }}</span> @enderror
+                                    </div>
                                 </div>
                             </div>
                         @endif
@@ -509,15 +558,31 @@
                         </div>
                         <div>
                             <span class="block text-xs text-dim">City</span>
-                            <span class="text-foreground">{{ $viewProperty->city?->name ?? '—' }}</span>
+                            <span class="text-foreground">{{ $viewProperty->address?->barangay?->city?->name ?? '—' }}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs text-dim">Province</span>
+                            <span class="text-foreground">{{ $viewProperty->address?->barangay?->city?->province?->name ?? '—' }}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs text-dim">Zip Code</span>
+                            <span class="text-foreground">{{ $viewProperty->address?->zip_code ?? '—' }}</span>
                         </div>
                         <div>
                             <span class="block text-xs text-dim">Property Type</span>
                             <span class="text-foreground">Type #{{ $viewProperty->property_type_id }}</span>
                         </div>
+                        <div>
+                            <span class="block text-xs text-dim">Region</span>
+                            <span class="text-foreground">{{ $viewProperty->address?->barangay?->city?->province?->region?->name ?? '—' }}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs text-dim">Barangay</span>
+                            <span class="text-foreground">{{ $viewProperty->address?->barangay?->name ?? '—' }}</span>
+                        </div>
                         <div class="col-span-2">
-                            <span class="block text-xs text-dim">Address</span>
-                            <span class="text-foreground">{{ $viewProperty->address }}</span>
+                            <span class="block text-xs text-dim">Street Address</span>
+                            <span class="text-foreground">{{ $viewProperty->address?->street ?? '—' }}</span>
                         </div>
                         <div class="col-span-2">
                             <span class="block text-xs text-dim">Description</span>

@@ -15,6 +15,9 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // Geographic reference data (PSGC)
+        $this->call(AddressSeeder::class);
+
         // Admin user
         User::factory()->create([
             'name' => 'Admin',
